@@ -48,6 +48,60 @@ pivot_pt = (df.pivot_table(index="Agency Name",
               .sort_index())
 
 print(pivot_pt)      # readable table in console
+
+
+from snowflake.snowpark import Session
+from snowflake.snowpark.functions import col
+
+# ---- EDIT THESE 4 LINES ONLY ----
+DB              = "PROD"
+SRC_SCHEMA      = "SALES"
+SRC_TABLE       = "ORDERS"           # e.g., PROD.SALES.ORDERS
+PRACTICE_SCHEMA = "PRACTICE_JESSIE"  # your isolated area
+ROW_LIMIT       = 10000              # cap your practice set
+
+def main(session: Session):
+    # Context (safe)
+    session.sql(f"USE DATABASE {DB}").collect()
+    session.sql(f"USE SCHEMA {SRC_SCHEMA}").collect()
+    session.sql("ALTER SESSION SET QUERY_TAG = 'practice_pyws'").collect()
+
+    # Fully qualified names
+    src_fqn       = f"{DB}.{SRC_SCHEMA}.{SRC_TABLE}"
+    prac_schema   = f"{DB}.{PRACTICE_SCHEMA}"
+    prac_table    = f"{prac_schema}.{SRC_TABLE}_PRACTICE"
+    prac_view     = f"{prac_schema}.{SRC_TABLE}_PRACTICE_V"
+
+    # 1) Ensure a private practice schema (safe: creates only if missing)
+    session.sql(f"CREATE SCHEMA IF NOT EXISTS {prac_schema}").collect()
+
+    # 2) Create a SMALL practice table (CTAS) — IF NOT EXISTS (no overwrite)
+    #    Uses ROW_NUMBER() to cap to ROW_LIMIT deterministically
+    session.sql(f"""
+        CREATE TABLE IF NOT EXISTS {prac_table} AS
+        WITH base AS (
+          SELECT *
+          FROM {src_fqn}
+          QUALIFY ROW_NUMBER() OVER (ORDER BY 1) <= {ROW_LIMIT}
+        )
+        SELECT * FROM base
+    """).collect()
+
+    # 3) Create/refresh a view that points to the practice table (in practice schema only)
+    session.sql(f"""
+        CREATE OR REPLACE VIEW {prac_view} AS
+        SELECT *
+        FROM {prac_table}
+    """).collect()
+
+    print("✅ Practice table:", prac_table)
+    print("✅ Practice view :", prac_view)
+
+    # Preview (read-only)
+    df_preview = session.table(prac_view).limit(20)
+    df_preview.show()
+    return df_preview
+
 # Optional: pivot_pt.to_excel("agency_by_program_type_avg.xlsx")
 
 
