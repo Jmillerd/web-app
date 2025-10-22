@@ -128,4 +128,5 @@ def cleanup_practice_objects(session):
 # To execute it in your worksheet:
 # cleanup_practice_objects(session)
 
+DROP SCHEMA IF EXISTS PROD.PRACTICE_JESSIE CASCADE;
 
