@@ -104,5 +104,28 @@ def main(session: Session):
 
 # Optional: pivot_pt.to_excel("agency_by_program_type_avg.xlsx")
 
+def cleanup_practice_objects(session):
+    DB              = "PROD"
+    PRACTICE_SCHEMA = "PRACTICE_JESSIE"
+    SRC_TABLE       = "ORDERS"  # same as in your practice script
+
+    prac_table = f"{DB}.{PRACTICE_SCHEMA}.{SRC_TABLE}_PRACTICE"
+    prac_view  = f"{DB}.{PRACTICE_SCHEMA}.{SRC_TABLE}_PRACTICE_V"
+
+    print("🧹 Cleaning up practice objects...")
+
+    # Drop view first (in case it references the table)
+    session.sql(f"DROP VIEW IF EXISTS {prac_view}").collect()
+    print(f"✅ Dropped view: {prac_view}")
+
+    # Drop table next
+    session.sql(f"DROP TABLE IF EXISTS {prac_table}").collect()
+    print(f"✅ Dropped table: {prac_table}")
+
+    print("Cleanup complete. Practice schema left intact.")
+    return "Done"
+
+# To execute it in your worksheet:
+# cleanup_practice_objects(session)
 
 
