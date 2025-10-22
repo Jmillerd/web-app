@@ -51,58 +51,40 @@ print(pivot_pt)      # readable table in console
 
 
 from snowflake.snowpark import Session
-from snowflake.snowpark.functions import col
 
-# ---- EDIT THESE 4 LINES ONLY ----
-DB              = "PROD"
-SRC_SCHEMA      = "SALES"
-SRC_TABLE       = "ORDERS"           # e.g., PROD.SALES.ORDERS
-PRACTICE_SCHEMA = "PRACTICE_JESSIE"  # your isolated area
-ROW_LIMIT       = 10000              # cap your practice set
+SRC_DB, SRC_SCHEMA, SRC_TABLE = "PROD", "SALES", "ORDERS"     # read from here
+OUT_DB, OUT_SCHEMA            = "USER$JESSIE", "PRACTICE"     # write to your sandbox
+ROW_LIMIT                     = 10000
 
 def main(session: Session):
-    # Context (safe)
-    session.sql(f"USE DATABASE {DB}").collect()
+    # Read context
+    session.sql(f"USE DATABASE {SRC_DB}").collect()
     session.sql(f"USE SCHEMA {SRC_SCHEMA}").collect()
-    session.sql("ALTER SESSION SET QUERY_TAG = 'practice_pyws'").collect()
 
-    # Fully qualified names
-    src_fqn       = f"{DB}.{SRC_SCHEMA}.{SRC_TABLE}"
-    prac_schema   = f"{DB}.{PRACTICE_SCHEMA}"
-    prac_table    = f"{prac_schema}.{SRC_TABLE}_PRACTICE"
-    prac_view     = f"{prac_schema}.{SRC_TABLE}_PRACTICE_V"
+    # Write context (your sandbox)
+    session.sql(f"USE DATABASE {OUT_DB}").collect()
+    session.sql(f"CREATE SCHEMA IF NOT EXISTS {OUT_DB}.{OUT_SCHEMA}").collect()
+    session.sql(f"USE SCHEMA {OUT_SCHEMA}").collect()
 
-    # 1) Ensure a private practice schema (safe: creates only if missing)
-    session.sql(f"CREATE SCHEMA IF NOT EXISTS {prac_schema}").collect()
+    src_fqn  = f"{SRC_DB}.{SRC_SCHEMA}.{SRC_TABLE}"
+    out_tbl  = f"{OUT_DB}.{OUT_SCHEMA}.{SRC_TABLE}_PRACTICE"
+    out_view = f"{OUT_DB}.{OUT_SCHEMA}.{SRC_TABLE}_PRACTICE_V"
 
-    # 2) Create a SMALL practice table (CTAS) — IF NOT EXISTS (no overwrite)
-    #    Uses ROW_NUMBER() to cap to ROW_LIMIT deterministically
+    # Create small practice table
     session.sql(f"""
-        CREATE TABLE IF NOT EXISTS {prac_table} AS
-        WITH base AS (
-          SELECT *
-          FROM {src_fqn}
-          QUALIFY ROW_NUMBER() OVER (ORDER BY 1) <= {ROW_LIMIT}
-        )
-        SELECT * FROM base
+        CREATE OR REPLACE TABLE {out_tbl} AS
+        SELECT * FROM {src_fqn} LIMIT {ROW_LIMIT}
     """).collect()
 
-    # 3) Create/refresh a view that points to the practice table (in practice schema only)
-    session.sql(f"""
-        CREATE OR REPLACE VIEW {prac_view} AS
-        SELECT *
-        FROM {prac_table}
-    """).collect()
+    # Create view on top (for Tableau or testing)
+    session.sql(f"CREATE OR REPLACE VIEW {out_view} AS SELECT * FROM {out_tbl}").collect()
 
-    print("✅ Practice table:", prac_table)
-    print("✅ Practice view :", prac_view)
+    print("✅ Practice table:", out_tbl)
+    print("✅ Practice view :", out_view)
 
-    # Preview (read-only)
-    df_preview = session.table(prac_view).limit(20)
-    df_preview.show()
-    return df_preview
-
-# Optional: pivot_pt.to_excel("agency_by_program_type_avg.xlsx")
+    df = session.table(out_view).limit(20)
+    df.show()
+    return df
 
 def cleanup_practice_objects(session):
     DB              = "PROD"
