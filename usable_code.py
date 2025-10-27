@@ -1,28 +1,26 @@
-# ================= SIMPLE PYTHON WORKSHEET TEMPLATE =================
-# Read and explore an existing Snowflake table (no object creation)
-
 from snowflake.snowpark import Session
-from snowflake.snowpark.functions import col
+from snowflake.snowpark.dataframe import DataFrame
+from snowflake.snowpark.functions import col, count_distinct
 
-# ---- EDIT THESE ----
-DB        = "PROD"
-SCHEMA    = "SALES"
-TABLE     = "ORDERS"     # full path: PROD.SALES.ORDERS
-ROW_LIMIT = 20           # rows to preview
+def get_unique_email_count_df(session: Session) -> DataFrame:
+    """
+    Returns a Snowpark DataFrame containing the distinct count of email addresses.
+    No table creation, no procedures, SELECT-only logic.
+    """
+    df: DataFrame = (
+        session.table("DB.SCHEMA.TABLE_NAME")          # <-- replace with your table
+        .filter(col("EMAIL_ADDRESS").is_not_null())    # remove NULLs
+        .filter(col("EMAIL_ADDRESS") != "")            # remove blanks
+        .agg(count_distinct(col("EMAIL_ADDRESS")).alias("UNIQUE_EMAIL_COUNT"))
+    )
+    return df
 
-def main(session: Session):
-    # Set context
-    session.sql(f"USE DATABASE {DB}").collect()
-    session.sql(f"USE SCHEMA {SCHEMA}").collect()
+# --- Usage Example ---
+result_df = get_unique_email_count_df(session)
 
-    # Load the table
-    df = session.table(f"{DB}.{SCHEMA}.{TABLE}")
+# Show result as DF
+result_df.show()
 
-    # Example filter (optional)
-    df_filtered = df.filter(col("TOTAL_AMOUNT") > 0)
-
-    # Show preview
-    df_filtered.limit(ROW_LIMIT).show()
-
-    # Return Snowpark DataFrame (renders as grid)
-    return df_filtered.limit(ROW_LIMIT)
+# Also print value as Python integer
+unique_count = result_df.collect()[0]["UNIQUE_EMAIL_COUNT"]
+print("Unique Email Count:", unique_count)
