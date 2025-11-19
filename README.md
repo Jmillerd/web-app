@@ -1,95 +1,36 @@
-// Quarterly Insights: textual summary for each quarter
-// Assumes the view has [Year Quarter] on Columns or Rows
-// and is ordered in time so LOOKUP(..., -1) refers to the previous quarter.
+// High-level textual explainer with placeholders for pipeline insights.
 
-// Current quarter values
-// ASP per quarter
-// (Total pipeline / distinct opps)
-"Quarter: " + STR(ATTR([Year Quarter]))
+"PIPELINE PERFORMANCE" 
 + CHAR(10) +
-"ASP: " 
-+ STR(
-    ROUND(
-        SUM([pipeline]) / COUNTD([opportunity_name])
-    , 0)
-)
-+ " | SW SALs: "
-+ STR(
-    SUM( INT([is_sw_sal]) )
-)
-+ " | iACV: "
-+ STR(
-    ROUND(
-        SUM([iACV])
-    , 0)
-)
+"--------------------" + CHAR(10) +
+"• Target Motion Buckets:" + CHAR(10) +
+"    - <Bucket 1 Name>: <brief description of motion and its strategic focus>" + CHAR(10) +
+"    - <Bucket 2 Name>: <brief description, e.g., expansion, renewals, or new logo>" + CHAR(10) +
+"    - <Bucket 3 Name>: <brief description, e.g., enterprise vs mid-market>" + CHAR(10) +
+"  Pipeline Summary:" + CHAR(10) +
+"    - <Total Pipeline in all Target Motions>" + CHAR(10) +
+"    - <Which bucket is carrying the largest share of pipeline?>" + CHAR(10) +
+"    - <Call out any bucket that is under target or overperforming>" + CHAR(10) + CHAR(10) +
+
+"PIPELINE WEEK OVER WEEK" 
 + CHAR(10) +
-"ASP Trend: "
-+
-CASE 
-    // No previous quarter in the partition
-    WHEN ISNULL(
-        LOOKUP(
-            SUM([pipeline]) / COUNTD([opportunity_name]),
-            -1
-        )
-    ) THEN
-        "First quarter in view (no QoQ comparison)."
+"------------------------" + CHAR(10) +
+"• Week-over-Week Movement:" + CHAR(10) +
+"    - <Compare this week vs last week total pipeline>" + CHAR(10) +
+"    - <Mention if pipeline is growing, flat, or declining week over week>" + CHAR(10) +
+"    - <Highlight any notable shifts in specific motions or segments>" + CHAR(10) +
+"  Key Takeaways:" + CHAR(10) +
+"    - <Is the current week strengthening or weakening the quarter?>" + CHAR(10) +
+"    - <Any spikes or drops that need follow-up?>" + CHAR(10) + CHAR(10) +
 
-    // ASP up > +5%
-    WHEN (SUM([pipeline]) / COUNTD([opportunity_name])) 
-         > LOOKUP(SUM([pipeline]) / COUNTD([opportunity_name]), -1) * 1.05
-    THEN "Increased significantly QoQ (average deal value is rising)."
-
-    // ASP down < -5%
-    WHEN (SUM([pipeline]) / COUNTD([opportunity_name])) 
-         < LOOKUP(SUM([pipeline]) / COUNTD([opportunity_name]), -1) * 0.95
-    THEN "Decreased QoQ (mix may be shifting to smaller/discounted deals)."
-
-    // Otherwise roughly flat
-    ELSE "Roughly flat QoQ (deal size is relatively stable)."
-END
+"QOQ TRENDS (ASP, SW SALs, iACV)" 
 + CHAR(10) +
-"SW SAL Volume Trend: "
-+
-CASE 
-    WHEN ISNULL(
-        LOOKUP(
-            SUM( INT([is_sw_sal]) ),
-            -1
-        )
-    ) THEN
-        "First quarter in view (no QoQ comparison)."
+"-------------------------------" + CHAR(10) +
+"• Quarter-over-Quarter View:" + CHAR(10) +
+"    - <Is ASP trending up, down, or stable across quarters?>" + CHAR(10) +
+"    - <Are SW SALs (software deals) increasing or cooling off?>" + CHAR(10) +
+"    - <Is total iACV growing faster, slower, or in line with ASP and SW SALs?>" + CHAR(10) +
+"  Summary Narrative:" + CHAR(10) +
+"    - <1–2 sentences summarizing how deal size, deal volume, and total revenue" + CHAR(10) +
+"       are working together this quarter vs prior quarters.>"
 
-    WHEN SUM( INT([is_sw_sal]) )
-         > LOOKUP(SUM( INT([is_sw_sal]) ), -1) * 1.10
-    THEN "Software deal count is up sharply QoQ."
-
-    WHEN SUM( INT([is_sw_sal]) )
-         < LOOKUP(SUM( INT([is_sw_sal]) ), -1) * 0.90
-    THEN "Software deal count is down noticeably QoQ."
-
-    ELSE "Software deal volume is roughly stable QoQ."
-END
-+ CHAR(10) +
-"iACV Trend: "
-+
-CASE
-    WHEN ISNULL(
-        LOOKUP(
-            SUM([iACV]),
-            -1
-        )
-    ) THEN
-        "First quarter in view (no QoQ comparison)."
-
-    WHEN SUM([iACV])
-         > LOOKUP(SUM([iACV]), -1) * 1.10
-    THEN "Total revenue impact (iACV) is up strongly QoQ."
-
-    WHEN SUM([iACV])
-         < LOOKUP(SUM([iACV]), -1) * 0.90
-    THEN "Total revenue impact (iACV) is down QoQ."
-
-    ELSE "Overall iACV is relatively stable QoQ."
-END
