@@ -1,82 +1,95 @@
-METRIC EXPLAINER & HOW TO READ THE GRAPHS
+// Quarterly Insights: textual summary for each quarter
+// Assumes the view has [Year Quarter] on Columns or Rows
+// and is ordered in time so LOOKUP(..., -1) refers to the previous quarter.
 
-1) ASP (Average Selling Price)
+// Current quarter values
+// ASP per quarter
+// (Total pipeline / distinct opps)
+"Quarter: " + STR(ATTR([Year Quarter]))
++ CHAR(10) +
+"ASP: " 
++ STR(
+    ROUND(
+        SUM([pipeline]) / COUNTD([opportunity_name])
+    , 0)
+)
++ " | SW SALs: "
++ STR(
+    SUM( INT([is_sw_sal]) )
+)
++ " | iACV: "
++ STR(
+    ROUND(
+        SUM([iACV])
+    , 0)
+)
++ CHAR(10) +
+"ASP Trend: "
++
+CASE 
+    // No previous quarter in the partition
+    WHEN ISNULL(
+        LOOKUP(
+            SUM([pipeline]) / COUNTD([opportunity_name]),
+            -1
+        )
+    ) THEN
+        "First quarter in view (no QoQ comparison)."
 
-   • What it means:
-     Average deal value per opportunity in that fiscal quarter.
+    // ASP up > +5%
+    WHEN (SUM([pipeline]) / COUNTD([opportunity_name])) 
+         > LOOKUP(SUM([pipeline]) / COUNTD([opportunity_name]), -1) * 1.05
+    THEN "Increased significantly QoQ (average deal value is rising)."
 
-   • Business definition:
-     Total pipeline value / number of distinct opportunities.
+    // ASP down < -5%
+    WHEN (SUM([pipeline]) / COUNTD([opportunity_name])) 
+         < LOOKUP(SUM([pipeline]) / COUNTD([opportunity_name]), -1) * 0.95
+    THEN "Decreased QoQ (mix may be shifting to smaller/discounted deals)."
 
-   • Tableau calculation:
-     { FIXED [Year Quarter] :
-         SUM([pipeline]) / COUNTD([opportunity_name])
-     }
+    // Otherwise roughly flat
+    ELSE "Roughly flat QoQ (deal size is relatively stable)."
+END
++ CHAR(10) +
+"SW SAL Volume Trend: "
++
+CASE 
+    WHEN ISNULL(
+        LOOKUP(
+            SUM( INT([is_sw_sal]) ),
+            -1
+        )
+    ) THEN
+        "First quarter in view (no QoQ comparison)."
 
-   • How to read the ASP line:
-     – Upward trend QoQ → we are closing larger deals on average.
-     – Downward trend QoQ → mix is shifting toward smaller deals,
-       discounts, or lower-value product tiers.
-     – Flat ASP + rising volume → growth coming from more deals, not bigger deals.
+    WHEN SUM( INT([is_sw_sal]) )
+         > LOOKUP(SUM( INT([is_sw_sal]) ), -1) * 1.10
+    THEN "Software deal count is up sharply QoQ."
 
-   • When to worry / pay attention:
-     – ASP drops while iACV stays flat → we might be needing more deals to hit the same revenue.
-     – ASP rises but SW SAL volume drops → we may be relying on fewer, big wins (potential risk).
+    WHEN SUM( INT([is_sw_sal]) )
+         < LOOKUP(SUM( INT([is_sw_sal]) ), -1) * 0.90
+    THEN "Software deal count is down noticeably QoQ."
 
+    ELSE "Software deal volume is roughly stable QoQ."
+END
++ CHAR(10) +
+"iACV Trend: "
++
+CASE
+    WHEN ISNULL(
+        LOOKUP(
+            SUM([iACV]),
+            -1
+        )
+    ) THEN
+        "First quarter in view (no QoQ comparison)."
 
-2) SW SAL (Software Sales Count)
+    WHEN SUM([iACV])
+         > LOOKUP(SUM([iACV]), -1) * 1.10
+    THEN "Total revenue impact (iACV) is up strongly QoQ."
 
-   • What it means:
-     How many opportunities in the quarter are flagged as software sales
-     (is_sw_sal = TRUE).
+    WHEN SUM([iACV])
+         < LOOKUP(SUM([iACV]), -1) * 0.90
+    THEN "Total revenue impact (iACV) is down QoQ."
 
-   • Helper field (row-level):
-     SW SAL Count =
-       INT([is_sw_sal])
-
-   • Aggregation in views:
-     SUM([SW SAL Count])
-
-   • How to read the SW SAL line:
-     – Upward trend → more software deals being created/closed.
-     – Downward trend → fewer software deals flowing through the pipeline.
-     – Flat line with moving ASP/iACV → value per software deal is changing.
-
-   • When to pay attention:
-     – SW SAL volume drops while ASP rises → fewer, larger software deals.
-     – SW SAL volume drops while iACV also drops → pipeline risk for software revenue.
-
-
-3) iACV (Incremental ACV)
-
-   • What it means:
-     Total incremental annual contract value created in that quarter.
-
-   • Tableau calculation:
-     SUM([iACV])
-
-   • How to read the iACV line:
-     – Upward trend → more total revenue impact from closed / progressing deals.
-     – Downward trend → softness in bookings or pipeline quality.
-     – iACV rising while ASP is flat → growth driven by more deals, not bigger deals.
-     – iACV rising while SW SAL rises → strong motion in software-led revenue.
-
-   • When to pay attention:
-     – iACV drops but SW SAL stays flat → deals may be smaller or downgraded.
-     – iACV rises sharply but ASP drops → we’re doing more deals, but at a lower price point.
-
-
-HOW TO USE THESE TOGETHER
-
-   • ASP + SW SAL:
-     – ASP shows "how big" the average deal is.
-     – SW SAL shows "how many" software deals we’re doing.
-     – High ASP + increasing SW SAL → ideal: more deals and they are big.
-
-   • ASP + iACV:
-     – ASP up + iACV up → we’re growing by bigger deals AND more overall value.
-     – ASP down + iACV up → more deals, but at lower value each (high volume, lower price).
-
-   • SW SAL + iACV:
-     – Both up → software motion is a key revenue driver.
-     – SW SAL up but iACV flat → lots of small software deals, not moving iACV much.
+    ELSE "Overall iACV is relatively stable QoQ."
+END
