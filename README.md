@@ -1,46 +1,55 @@
-"Pipeline Performance - Week Over Week"
+"PIPELINE PERFORMANCE: " +
+
+" Total - " + "$" +
+IF SUM([PL $]) >= 1000000 THEN
+    STR(INT(SUM([PL $]) / 1000000)) + "M"
+ELSEIF SUM([PL $]) >= 1000 THEN
+    STR(INT(SUM([PL $]) / 1000)) + "K"
+ELSE
+    STR(INT(SUM([PL $])))
+END
+
 + CHAR(10) +
 CHAR(10) +
 
-"    • Current Week Pipeline: $" +
-IF SUM([PL]) >= 1000000 THEN
-    STR(INT(SUM([PL]) / 1000000)) + "M"
-ELSEIF SUM([PL]) >= 1000 THEN
-    STR(INT(SUM([PL]) / 1000)) + "K"
+" • Focused BDR: $" +
+IF SUM( IF [Target Motion Buckets] = '' THEN [PL $] END ) >= 1000000 THEN
+    STR(INT(SUM( IF [Target Motion Buckets] = '' THEN [PL $] END ) / 1000000)) + "M"
+ELSEIF SUM( IF [Target Motion Buckets] = '' THEN [PL $] END ) >= 1000 THEN
+    STR(INT(SUM( IF [Target Motion Buckets] = '' THEN [PL $] END ) / 1000)) + "K"
 ELSE
-    STR(INT(SUM([PL])))
+    STR(INT(SUM( IF [Target Motion Buckets] = '' THEN [PL $] END )))
 END
+
 + CHAR(10) +
 
-"    • Previous Week Pipeline: $" +
-IF LOOKUP(SUM([PL]), -1) >= 1000000 THEN
-    STR(INT(LOOKUP(SUM([PL]), -1) / 1000000)) + "M"
-ELSEIF LOOKUP(SUM([PL]), -1) >= 1000 THEN
-    STR(INT(LOOKUP(SUM([PL]), -1) / 1000)) + "K"
+" • Market Response: $" +
+IF SUM( IF [Target Motion Buckets] = '' THEN [Pipeline $] END ) >= 1000000 THEN
+    STR(INT(SUM( IF [Target Motion Buckets] = '' THEN [Pipeline $] END ) / 1000000)) + "M"
+ELSEIF SUM( IF [Target Motion Buckets] = '' THEN [Pipeline $] END ) >= 1000 THEN
+    STR(INT(SUM( IF [Target Motion Buckets] = '' THEN [Pipeline $] END ) / 1000)) + "K"
 ELSE
-    STR(INT(LOOKUP(SUM([PL]), -1)))
+    STR(INT(SUM( IF [Target Motion Buckets] = '' THEN [Pipeline $] END )))
 END
+
 + CHAR(10) +
 
-"    • Week-over-Week Change: $" +
-IF (SUM([PL]) - LOOKUP(SUM([PL]), -1)) >= 1000000 THEN
-    STR(INT((SUM([PL]) - LOOKUP(SUM([PL]), -1)) / 1000000)) + "M"
-ELSEIF (SUM([PL]) - LOOKUP(SUM([PL]), -1)) >= 1000 THEN
-    STR(INT((SUM([PL]) - LOOKUP(SUM([PL]), -1)) / 1000)) + "K"
+" • ISR: $" +
+IF SUM( IF [Target Motion Buckets] = '' THEN [PL $] END ) >= 1000000 THEN
+    STR(INT(SUM( IF [Target Motion Buckets] = '' THEN [PL $] END ) / 1000000)) + "M"
+ELSEIF SUM( IF [Target Motion Buckets] = '' THEN [PL $] END ) >= 1000 THEN
+    STR(INT(SUM( IF [Target Motion Buckets] = '' THEN [PL $] END ) / 1000)) + "K"
 ELSE
-    STR(INT(SUM([PL]) - LOOKUP(SUM([PL]), -1)))
+    STR(INT(SUM( IF [Target Motion Buckets] = '' THEN [PL $] END )))
 END
+
 + CHAR(10) +
 
-"    • Week-over-Week % Change: " +
-IF LOOKUP(SUM([PL]), -1) = 0 OR ISNULL(LOOKUP(SUM([PL]), -1)) THEN
-    "n/a"
+" • No Motion: $" +
+IF SUM( IF [Target Motion Buckets] = '' THEN [PL $] END ) >= 1000000 THEN
+    STR(INT(SUM( IF [Target Motion Buckets] = '' THEN [PL $] END ) / 1000000)) + "M"
+ELSEIF SUM( IF [Target Motion Buckets] = '' THEN [PL $] END ) >= 1000 THEN
+    STR(INT(SUM( IF [Target Motion Buckets] = '' THEN [PL $] END ) / 1000)) + "K"
 ELSE
-    STR(
-        ROUND(
-            ( SUM([PL]) - LOOKUP(SUM([PL]), -1) )
-            / ABS(LOOKUP(SUM([PL]), -1)) * 100
-        , 1)
-    ) + "%"
+    STR(INT(SUM( IF [Target Motion Buckets] = '' THEN [PL $] END )))
 END
-
