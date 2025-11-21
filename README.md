@@ -1,41 +1,46 @@
-"Current Quarter Pipeline: $" +
-IF [Pipeline_Qtr] >= 1000000 THEN
-    STR(INT([Pipeline_Qtr] / 1000000)) + "M"
-ELSEIF [Pipeline_Qtr] >= 1000 THEN
-    STR(INT([Pipeline_Qtr] / 1000)) + "K"
-ELSE
-    STR(INT([Pipeline_Qtr]))
-END
+"Pipeline Performance - Week Over Week"
++ CHAR(10) +
+CHAR(10) +
 
+"    • Current Week Pipeline: $" +
+IF SUM([PL]) >= 1000000 THEN
+    STR(INT(SUM([PL]) / 1000000)) + "M"
+ELSEIF SUM([PL]) >= 1000 THEN
+    STR(INT(SUM([PL]) / 1000)) + "K"
+ELSE
+    STR(INT(SUM([PL])))
+END
 + CHAR(10) +
 
-"Previous Quarter Pipeline: $" +
-IF LOOKUP([Pipeline_Qtr], -1) >= 1000000 THEN
-    STR(INT(LOOKUP([Pipeline_Qtr], -1) / 1000000)) + "M"
-ELSEIF LOOKUP([Pipeline_Qtr], -1) >= 1000 THEN
-    STR(INT(LOOKUP([Pipeline_Qtr], -1) / 1000)) + "K"
+"    • Previous Week Pipeline: $" +
+IF LOOKUP(SUM([PL]), -1) >= 1000000 THEN
+    STR(INT(LOOKUP(SUM([PL]), -1) / 1000000)) + "M"
+ELSEIF LOOKUP(SUM([PL]), -1) >= 1000 THEN
+    STR(INT(LOOKUP(SUM([PL]), -1) / 1000)) + "K"
 ELSE
-    STR(INT(LOOKUP([Pipeline_Qtr], -1)))
+    STR(INT(LOOKUP(SUM([PL]), -1)))
 END
-
 + CHAR(10) +
 
-"Quarter-Over-Quarter Pipeline: $" +
-IF ([Pipeline_Qtr] - LOOKUP([Pipeline_Qtr], -1)) >= 1000000 THEN
-    STR(INT(( [Pipeline_Qtr] - LOOKUP([Pipeline_Qtr], -1) ) / 1000000)) + "M"
-ELSEIF ([Pipeline_Qtr] - LOOKUP([Pipeline_Qtr], -1)) >= 1000 THEN
-    STR(INT(( [Pipeline_Qtr] - LOOKUP([Pipeline_Qtr], -1) ) / 1000)) + "K"
+"    • Week-over-Week Change: $" +
+IF (SUM([PL]) - LOOKUP(SUM([PL]), -1)) >= 1000000 THEN
+    STR(INT((SUM([PL]) - LOOKUP(SUM([PL]), -1)) / 1000000)) + "M"
+ELSEIF (SUM([PL]) - LOOKUP(SUM([PL]), -1)) >= 1000 THEN
+    STR(INT((SUM([PL]) - LOOKUP(SUM([PL]), -1)) / 1000)) + "K"
 ELSE
-    STR(INT([Pipeline_Qtr] - LOOKUP([Pipeline_Qtr], -1)))
+    STR(INT(SUM([PL]) - LOOKUP(SUM([PL]), -1)))
 END
-
 + CHAR(10) +
 
-"Quarter-Over-Quarter % Change: " +
-STR(
-    ROUND(
-        ( [Pipeline_Qtr] - LOOKUP([Pipeline_Qtr], -1) )
-        / LOOKUP([Pipeline_Qtr], -1)
-        * 100
-    , 1)
-) + "%"
+"    • Week-over-Week % Change: " +
+IF LOOKUP(SUM([PL]), -1) = 0 OR ISNULL(LOOKUP(SUM([PL]), -1)) THEN
+    "n/a"
+ELSE
+    STR(
+        ROUND(
+            ( SUM([PL]) - LOOKUP(SUM([PL]), -1) )
+            / ABS(LOOKUP(SUM([PL]), -1)) * 100
+        , 1)
+    ) + "%"
+END
+
