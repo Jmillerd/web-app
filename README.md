@@ -1,28 +1,41 @@
-"QoQ Trends"
-+ CHAR(10) + CHAR(10)
-
-+ "    • ASP: $" +
-IF [ASP_numeric] >= 1000000 THEN
-    STR(INT([ASP_numeric] / 1000000)) + "M"
-ELSEIF [ASP_numeric] >= 1000 THEN
-    STR(INT([ASP_numeric] / 1000)) + "K"
+"Current Quarter Pipeline: $" +
+IF [Pipeline_Qtr] >= 1000000 THEN
+    STR(INT([Pipeline_Qtr] / 1000000)) + "M"
+ELSEIF [Pipeline_Qtr] >= 1000 THEN
+    STR(INT([Pipeline_Qtr] / 1000)) + "K"
 ELSE
-    STR(INT([ASP_numeric]))
+    STR(INT([Pipeline_Qtr]))
 END
 
-+ CHAR(10)
++ CHAR(10) +
 
-+ "    • iACV: $" +
-IF [iACV_numeric] >= 1000000 THEN
-    STR(INT([iACV_numeric] / 1000000)) + "M"
-ELSEIF [iACV_numeric] >= 1000 THEN
-    STR(INT([iACV_numeric] / 1000)) + "K"
+"Previous Quarter Pipeline: $" +
+IF LOOKUP([Pipeline_Qtr], -1) >= 1000000 THEN
+    STR(INT(LOOKUP([Pipeline_Qtr], -1) / 1000000)) + "M"
+ELSEIF LOOKUP([Pipeline_Qtr], -1) >= 1000 THEN
+    STR(INT(LOOKUP([Pipeline_Qtr], -1) / 1000)) + "K"
 ELSE
-    STR(INT([iACV_numeric]))
+    STR(INT(LOOKUP([Pipeline_Qtr], -1)))
 END
 
-+ CHAR(10)
++ CHAR(10) +
 
-+ "    • SW SALs: " +
-STR([SW_SALS_numeric])
+"Quarter-Over-Quarter Pipeline: $" +
+IF ([Pipeline_Qtr] - LOOKUP([Pipeline_Qtr], -1)) >= 1000000 THEN
+    STR(INT(( [Pipeline_Qtr] - LOOKUP([Pipeline_Qtr], -1) ) / 1000000)) + "M"
+ELSEIF ([Pipeline_Qtr] - LOOKUP([Pipeline_Qtr], -1)) >= 1000 THEN
+    STR(INT(( [Pipeline_Qtr] - LOOKUP([Pipeline_Qtr], -1) ) / 1000)) + "K"
+ELSE
+    STR(INT([Pipeline_Qtr] - LOOKUP([Pipeline_Qtr], -1)))
+END
 
++ CHAR(10) +
+
+"Quarter-Over-Quarter % Change: " +
+STR(
+    ROUND(
+        ( [Pipeline_Qtr] - LOOKUP([Pipeline_Qtr], -1) )
+        / LOOKUP([Pipeline_Qtr], -1)
+        * 100
+    , 1)
+) + "%"
