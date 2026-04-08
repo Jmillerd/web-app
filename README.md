@@ -1,30 +1,41 @@
-WITH ordered_events AS (
-    SELECT
-        user_id,                     -- or session_id
-        event_timestamp,
-        page_path,
-        event_name,
-        LEAD(page_path) OVER (
-            PARTITION BY user_id     -- or session_id
-            ORDER BY event_timestamp
-        ) AS next_page_path
-    FROM events_table
-    WHERE event_name IN (
-        'form_start',
-        'form_submit_success',
-        'page_view'
-    )
-)
+def get_event_after_nav_click(df, session_id=None, **filters):
+    temp = df.copy()
 
-SELECT
-    page_path AS form_page,
-    next_page_path,
-    COUNTIF(event_name = 'form_start') AS form_starts,
-    COUNTIF(event_name = 'form_submit_success') AS form_submits
-FROM ordered_events
-WHERE page_path = '/your/form/page'
-GROUP BY
-    page_path,
-    next_page_path
-ORDER BY
-    form_starts DESC;
+    # Optional: limit to one session for testing
+    if session_id is not None:
+        temp = temp[temp["SESSION_ID"] == session_id]
+
+    temp = temp.sort_values(["SESSION_ID", "EVENT_TIMESTAMP"])
+
+    click_filter = temp["EVENT_NAME"] == "link_click"
+
+    for col, val in filters.items():
+        click_filter &= temp[col] == val
+
+    temp["prev_is_target_click"] = click_filter.groupby(temp["SESSION_ID"]).shift(1, fill_value=False)
+
+    return temp[temp["prev_is_target_click"]].copy()
+
+
+def get_events_after_click(df, session_id=None, include_click=False, **filters):
+    temp = df.copy()
+
+    # Optional: limit to one session for testing
+    if session_id is not None:
+        temp = temp[temp["SESSION_ID"] == session_id]
+
+    temp = temp.sort_values(["SESSION_ID", "EVENT_TIMESTAMP"])
+
+    click_filter = temp["EVENT_NAME"] == "link_click"
+
+    for col, val in filters.items():
+        click_filter &= temp[col] == val
+
+    temp["after_target_click"] = click_filter.groupby(temp["SESSION_ID"]).cummax()
+
+    result = temp[temp["after_target_click"]].copy()
+
+    if not include_click:
+        result = result[~click_filter.loc[result.index]]
+
+    return result
