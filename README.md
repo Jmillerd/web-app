@@ -1,41 +1,4 @@
-def get_event_after_nav_click(df, session_id=None, **filters):
-    temp = df.copy()
-
-    # Optional: limit to one session for testing
-    if session_id is not None:
-        temp = temp[temp["SESSION_ID"] == session_id]
-
-    temp = temp.sort_values(["SESSION_ID", "EVENT_TIMESTAMP"])
-
-    click_filter = temp["EVENT_NAME"] == "link_click"
-
-    for col, val in filters.items():
-        click_filter &= temp[col] == val
-
-    temp["prev_is_target_click"] = click_filter.groupby(temp["SESSION_ID"]).shift(1, fill_value=False)
-
-    return temp[temp["prev_is_target_click"]].copy()
-
-
-def get_events_after_click(df, session_id=None, include_click=False, **filters):
-    temp = df.copy()
-
-    # Optional: limit to one session for testing
-    if session_id is not None:
-        temp = temp[temp["SESSION_ID"] == session_id]
-
-    temp = temp.sort_values(["SESSION_ID", "EVENT_TIMESTAMP"])
-
-    click_filter = temp["EVENT_NAME"] == "link_click"
-
-    for col, val in filters.items():
-        click_filter &= temp[col] == val
-
-    temp["after_target_click"] = click_filter.groupby(temp["SESSION_ID"]).cummax()
-
-    result = temp[temp["after_target_click"]].copy()
-
-    if not include_click:
-        result = result[~click_filter.loc[result.index]]
-
-    return result
+="Page views were down slightly, decreasing from " & TEXT(C4,"#,##0") & " to " & TEXT(C5,"#,##0") & ". " &
+"Clicks declined from " & TEXT(C6,"#,##0") & " to " & TEXT(C7,"#,##0") & ", while CTR fell from " & TEXT(C10,"0.0%") & " to " & TEXT(C11,"0.0%") & ". " &
+"Conversely, clicks increased from " & TEXT(C8,"#,##0") & " to " & TEXT(C9,"#,##0") & ", with CTR rising from " & TEXT(C12,"0.0%") & " to " & TEXT(C13,"0.0%") & ". " &
+"Overall, performance was mixed across pages, suggesting differences in user engagement, traffic quality, or content effectiveness that warrant further investigation."
