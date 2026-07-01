@@ -1,0 +1,407 @@
+# ============================================================
+# STEP 1: IMPORT LIBRARIES
+# ============================================================
+
+import pandas as pd
+import numpy as np
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    classification_report,
+    confusion_matrix,
+    roc_auc_score
+)
+
+
+# ============================================================
+# STEP 2: CREATE A WORKING DATAFRAME
+# Assumes your Snowflake query result is already stored as df.
+# ============================================================
+
+model_df = df.copy()
+
+
+# ============================================================
+# STEP 3: CLEAN STAGE NAME AND CREATE THE TARGET
+#
+# closed_won:
+# 1 = Closed Won
+# 0 = Closed Lost
+# ============================================================
+
+model_df["OPP_STAGENAME"] = (
+    model_df["OPP_STAGENAME"]
+    .fillna("UNKNOWN")
+    .astype(str)
+    .str.strip()
+    .str.upper()
+)
+
+model_df = model_df[
+    model_df["OPP_STAGENAME"].isin(
+        ["CLOSED WON", "CLOSED LOST"]
+    )
+].copy()
+
+model_df["closed_won"] = np.where(
+    model_df["OPP_STAGENAME"] == "CLOSED WON",
+    1,
+    0
+)
+
+
+# ============================================================
+# STEP 4: ENSURE DATE FIELDS ARE DATETIME
+# Safe even if they already arrived from Snowflake as dates.
+# ============================================================
+
+date_columns = [
+    "PERSON_CREATED_DATE",
+    "ACTIVITY_DATE",
+    "OPP_CREATE_DATE",
+    "OPP_CLOSE_DATE"
+]
+
+for col in date_columns:
+    model_df[col] = pd.to_datetime(
+        model_df[col],
+        errors="coerce"
+    )
+
+
+# ============================================================
+# STEP 5: CREATE NUMERIC DATE FEATURES
+#
+# These are usable model inputs.
+# Raw dates themselves are not used in X.
+# ============================================================
+
+model_df["opportunity_age_days"] = (
+    model_df["ACTIVITY_DATE"] - model_df["OPP_CREATE_DATE"]
+).dt.days
+
+model_df["person_age_days"] = (
+    model_df["ACTIVITY_DATE"] - model_df["PERSON_CREATED_DATE"]
+).dt.days
+
+# Remove impossible negative durations.
+model_df.loc[
+    model_df["opportunity_age_days"] < 0,
+    "opportunity_age_days"
+] = np.nan
+
+model_df.loc[
+    model_df["person_age_days"] < 0,
+    "person_age_days"
+] = np.nan
+
+
+# ============================================================
+# STEP 6: CLEAN CATEGORICAL FEATURES
+#
+# Standardizes values such as:
+# "Email", "EMAIL", and " email "
+# ============================================================
+
+categorical_features = [
+    "CAMPAIGN_TYPE",
+    "ACTIVITY_STATUS"
+]
+
+for col in categorical_features:
+    model_df[col] = (
+        model_df[col]
+        .fillna("UNKNOWN")
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+
+
+# ============================================================
+# STEP 7: KEEP ONLY ROWS WITH A CLOSE DATE
+#
+# OPP_CLOSE_DATE is used only for sorting older records into
+# training data and newer records into test data.
+# ============================================================
+
+model_df = model_df.dropna(
+    subset=["OPP_CLOSE_DATE"]
+).copy()
+
+model_df = model_df.sort_values(
+    "OPP_CLOSE_DATE"
+)
+
+
+# ============================================================
+# STEP 8: CREATE X AND y
+#
+# X = model inputs
+# y = known historical outcome
+# ============================================================
+
+feature_columns = [
+    "CAMPAIGN_TYPE",
+    "ACTIVITY_STATUS",
+    "opportunity_age_days",
+    "person_age_days"
+]
+
+X = model_df[feature_columns].copy()
+
+y = model_df["closed_won"].copy()
+
+
+# ============================================================
+# STEP 9: TIME-BASED TRAIN / TEST SPLIT
+#
+# Oldest 70% = training
+# Newest 30% = test
+# ============================================================
+
+split_index = int(len(X) * 0.70)
+
+X_train = X.iloc[:split_index].copy()
+X_test = X.iloc[split_index:].copy()
+
+y_train = y.iloc[:split_index].copy()
+y_test = y.iloc[split_index:].copy()
+
+print("Training outcome counts:")
+print(y_train.value_counts())
+
+print("\nTest outcome counts:")
+print(y_test.value_counts())
+
+
+# ============================================================
+# STEP 10: REMOVE ALL-NULL COLUMNS
+#
+# An all-null field has no signal and causes imputation issues.
+# ============================================================
+
+all_null_columns = X_train.columns[
+    X_train.isna().all()
+].tolist()
+
+print("\nAll-null columns removed:")
+print(all_null_columns)
+
+X_train = X_train.drop(
+    columns=all_null_columns
+)
+
+X_test = X_test.drop(
+    columns=all_null_columns
+)
+
+
+# ============================================================
+# STEP 11: FILL MISSING NUMERIC VALUES
+#
+# Use the training median so test-data information does not
+# influence the training process.
+# ============================================================
+
+numeric_features = [
+    "opportunity_age_days",
+    "person_age_days"
+]
+
+numeric_features = [
+    col for col in numeric_features
+    if col in X_train.columns
+]
+
+for col in numeric_features:
+    train_median = X_train[col].median()
+
+    X_train[col] = X_train[col].fillna(
+        train_median
+    )
+
+    X_test[col] = X_test[col].fillna(
+        train_median
+    )
+
+
+# ============================================================
+# STEP 12: CREATE DUMMY VARIABLES
+#
+# Example:
+# CAMPAIGN_TYPE_WEBINAR = 1 or 0
+# ACTIVITY_STATUS_OPENED = 1 or 0
+#
+# Do this separately, then align test columns to train columns.
+# ============================================================
+
+X_train = pd.get_dummies(
+    X_train,
+    columns=[
+        col for col in categorical_features
+        if col in X_train.columns
+    ],
+    drop_first=True,
+    dtype=int
+)
+
+X_test = pd.get_dummies(
+    X_test,
+    columns=[
+        col for col in categorical_features
+        if col in X_test.columns
+    ],
+    drop_first=True,
+    dtype=int
+)
+
+# Ensure test data has the same columns, in the same order,
+# as training data. Any unseen test category becomes 0.
+X_test = X_test.reindex(
+    columns=X_train.columns,
+    fill_value=0
+)
+
+
+# ============================================================
+# STEP 13: SCALE THE FEATURES
+#
+# Fit only on training data.
+# ============================================================
+
+scaler = StandardScaler()
+
+X_train_scaled = scaler.fit_transform(
+    X_train
+)
+
+X_test_scaled = scaler.transform(
+    X_test
+)
+
+
+# ============================================================
+# STEP 14: FIT LOGISTIC REGRESSION
+# ============================================================
+
+log_reg = LogisticRegression(
+    max_iter=2000,
+    C=0.1,
+    random_state=1
+)
+
+log_reg.fit(
+    X_train_scaled,
+    y_train
+)
+
+
+# ============================================================
+# STEP 15: SCORE THE TEST DATA
+#
+# predicted_win_probability:
+# probability that closed_won = 1
+#
+# model_score_0_to_100:
+# same probability expressed as a 0-100 score
+# ============================================================
+
+predicted_class = log_reg.predict(
+    X_test_scaled
+)
+
+predicted_win_probability = log_reg.predict_proba(
+    X_test_scaled
+)[:, 1]
+
+model_score_0_to_100 = np.round(
+    predicted_win_probability * 100,
+    1
+)
+
+
+# ============================================================
+# STEP 16: EVALUATE THE MODEL
+# ============================================================
+
+print("\nClassification Report:\n")
+print(
+    classification_report(
+        y_test,
+        predicted_class
+    )
+)
+
+print("\nConfusion Matrix:\n")
+print(
+    confusion_matrix(
+        y_test,
+        predicted_class
+    )
+)
+
+print("\nROC-AUC:")
+print(
+    round(
+        roc_auc_score(
+            y_test,
+            predicted_win_probability
+        ),
+        3
+    )
+)
+
+
+# ============================================================
+# STEP 17: REVIEW SCORED RESULTS
+# ============================================================
+
+results = X_test.copy()
+
+results["actual_closed_won"] = y_test.values
+results["predicted_win_probability"] = (
+    predicted_win_probability
+)
+results["model_score_0_to_100"] = (
+    model_score_0_to_100
+)
+
+results = results.sort_values(
+    "model_score_0_to_100",
+    ascending=False
+)
+
+print("\nTop 20 Model Scores:\n")
+print(
+    results[
+        [
+            "actual_closed_won",
+            "predicted_win_probability",
+            "model_score_0_to_100"
+        ]
+    ].head(20)
+)
+
+
+# ============================================================
+# STEP 18: REVIEW FEATURE COEFFICIENTS
+# ============================================================
+
+coefficient_table = pd.DataFrame(
+    {
+        "feature": X_train.columns,
+        "coefficient": log_reg.coef_[0],
+        "odds_ratio": np.exp(log_reg.coef_[0])
+    }
+).sort_values(
+    "coefficient",
+    ascending=False
+)
+
+print("\nMost positive win associations:\n")
+print(coefficient_table.head(20))
+
+print("\nMost negative win associations:\n")
+print(coefficient_table.tail(20))
