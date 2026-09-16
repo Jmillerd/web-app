@@ -24,10 +24,10 @@ def get_documentation(query: str) -> str:
         content = document["content"]
 
         # Keep short documents whole.
-        if len(content) <= 2000:
+        if len(content) <= 1000:
             sections = [content]
 
-        # Split only longer documents.
+        # Split longer documents.
         else:
             sections = split_into_sections(content)
 
@@ -63,7 +63,7 @@ def get_documentation(query: str) -> str:
         file_name = result["file_name"]
         current_count = results_per_file.get(file_name, 0)
 
-        # Prevent one long document from filling every result.
+        # Prevent one long document from taking every result.
         if current_count >= 2:
             continue
 
